@@ -104,14 +104,14 @@ def add_round_key(state, key):
         for j in range(4):
             state[i][j] ^= key[i][j]
 
-def sub_bytes(state):
+def sub_bytes(state, box = SBOX):
     for i in range(4):
         for j in range(4):
-            state[i][j] = SBOX[state[i][j]]
+            state[i][j] = box[state[i][j]]
 
-def shift_rows(state):
+def shift_rows(state, dir = 1):
     for i in range(4):
-        state[i] = rotate(state[i], i)
+        state[i] = rotate(state[i], i * dir)
 
 def mix_columns(s):
     # Sec 4.1.2 in The Design of Rijndael
@@ -120,6 +120,17 @@ def mix_columns(s):
         k = [s[j%4][i] for j in range(5)]
         for j in range(4):
             s[j][i] ^= t ^ xtime(s[j][i] ^ k[j+1])
+
+# 4.1.3
+def unmix_columns(s):
+    for i in range(4):
+        u = xtime(xtime(s[0][i] ^ s[2][i]))
+        v = xtime(xtime(s[1][i] ^ s[3][i]))
+        s[0][i] ^= u
+        s[1][i] ^= v
+        s[2][i] ^= u
+        s[3][i] ^= v
+    mix_columns(s)
 
 def cipher(block, keys):
     state = transpose(to_matrix(block))
@@ -134,3 +145,18 @@ def cipher(block, keys):
         add_round_key(state, keys[round])
 
     return bytes(flatten(transpose(state)))
+
+def inv_cipher(block, keys):
+    state = transpose(to_matrix(block))
+
+    add_round_key(state, keys[-1])
+
+    for round in range(1, 11):
+        shift_rows(state, -1)
+        sub_bytes(state, INV_SBOX)
+        add_round_key(state, keys[10 - round])
+        if round != 10:
+            unmix_columns(state)
+
+    return bytes(flatten(transpose(state)))
+
