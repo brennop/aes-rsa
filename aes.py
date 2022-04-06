@@ -5,6 +5,8 @@
 # http://www.moserware.com/assets/stick-figure-guide-to-advanced/A%20Stick%20Figure%20Guide%20to%20the%20Advanced%20Encryption%20Standard%20%28AES%29.pdf
 # https://csrc.nist.gov/csrc/media/publications/fips/197/final/documents/fips-197.pdf
 
+from os import urandom
+
 nk = 4 # chave de 128 bit / 4 words
 nb = 4 # blocos de 128 bit / 4 words
 nr = 10 # 10 rounds
@@ -54,15 +56,22 @@ RCON = (
     0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
 )
 
-def print_matrix(matrix):
-    for row in matrix:
-        for i in row:
-            print(hex(i), end=" ")
-        print()
-    print()
+# pkcs#7
+# https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS#5_and_PKCS#7
+def pad(message):
+    size = 16 - len(message) % 16 # sempre haverá um padding
+    return message + bytes([size] * size) # constroi um preenchimento de size sizes
 
-def flatten(l):
-    return [x for s in l for x in s]
+def unpad(message):
+    size = message[-1]  # tamanho do padding é o ultimo elemento
+    return message[:-size] # retorna a mensagem sem o preenchimento
+
+def split(message):
+    return [message[i:i+16] for i in range(0, len(message), 16)]
+
+def add(bytes, x):
+    as_int = int.from_bytes(bytes, byteorder="big")
+    return (as_int + x).to_bytes(16, byteorder="big")
 
 def to_matrix(msg):
     return [[msg[i+j*4] for i in range(4)] for j in range(4)]
@@ -113,24 +122,20 @@ def shift_rows(state, dir = 1):
     for i in range(4):
         state[i] = rotate(state[i], i * dir)
 
-def mix_columns(s):
+def mix_columns(s, inv=False):
     # Sec 4.1.2 in The Design of Rijndael
     for i in range(4):
+        # Sec 4.1.3 in The Design of Rijndael
+        if inv:
+            u = xtime(xtime(s[0][i] ^ s[2][i]))
+            v = xtime(xtime(s[1][i] ^ s[3][i]))
+            for j, k in enumerate([u,v,u,v]):
+                s[j][i] ^= k
+
         t = s[0][i] ^ s[1][i] ^ s[2][i] ^ s[3][i]
         k = [s[j%4][i] for j in range(5)]
         for j in range(4):
             s[j][i] ^= t ^ xtime(s[j][i] ^ k[j+1])
-
-# 4.1.3
-def unmix_columns(s):
-    for i in range(4):
-        u = xtime(xtime(s[0][i] ^ s[2][i]))
-        v = xtime(xtime(s[1][i] ^ s[3][i]))
-        s[0][i] ^= u
-        s[1][i] ^= v
-        s[2][i] ^= u
-        s[3][i] ^= v
-    mix_columns(s)
 
 def cipher(block, keys):
     state = transpose(to_matrix(block))
@@ -144,9 +149,9 @@ def cipher(block, keys):
             mix_columns(state)  # Sec 5.1.3
         add_round_key(state, keys[round])
 
-    return bytes(flatten(transpose(state)))
+    return b''.join(map(bytes, transpose(state)))
 
-def inv_cipher(block, keys):
+def decipher(block, keys):
     state = transpose(to_matrix(block))
 
     add_round_key(state, keys[-1])
@@ -154,9 +159,20 @@ def inv_cipher(block, keys):
     for round in range(1, 11):
         shift_rows(state, -1)
         sub_bytes(state, INV_SBOX)
-        add_round_key(state, keys[10 - round])
+        add_round_key(state, keys[~round])
         if round != 10:
-            unmix_columns(state)
+            mix_columns(state, inv = True)
 
-    return bytes(flatten(transpose(state)))
+    return b''.join(map(bytes, transpose(state)))
+
+def ctr(message, key, iv):
+    keys = expand_key(key)
+
+    blocks = split(message)
+    nonces = iter(add(iv, i) for i in range(len(blocks)))
+    ciphers = iter(cipher(n, keys) for n in nonces)
+
+    cipher_text = map(xor, blocks, ciphers)
+
+    return b''.join(map(bytes, cipher_text))
 
