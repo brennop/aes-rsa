@@ -54,8 +54,19 @@ RCON = (
     0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
 )
 
-def to_matrix(msg: bytes):
+def print_matrix(matrix):
+    for row in matrix:
+        for i in row:
+            print(hex(i), end=" ")
+        print()
+    print()
+
+
+def to_matrix(msg):
     return [[msg[i+j*4] for i in range(4)] for j in range(4)]
+
+def transpose(l):
+    return list(map(list, zip(*l)))
 
 def xor(a, b):
     return [x^y for x,y in zip(a,b)]
@@ -74,17 +85,16 @@ def sub_word(word):
 
 def expand_key(key):
     # 4 primeiras words
-    w = to_matrix(key)
-    print(w)
+    words = to_matrix(key)
 
     # 40 words restantes
     for i in range(4, 44):
-        temp = w[i-1]
+        temp = words[i-1]
         if i % 4 == 0:
             temp = xor(sub_word(rotate(temp)), [RCON[i//4], 0, 0, 0])
-        w.append(xor(w[i-4], temp))
+        words.append(xor(words[i-4], temp))
 
-    return w
+    return [transpose(words[i:i+4]) for i in range(0, len(words), 4)]
             
 
 def add_round_key(state, key):
@@ -101,19 +111,20 @@ def shift_rows(state):
     for i in range(4):
         state[i] = rotate(state[i], i)
 
-def mix_columns(state):
+def mix_columns(s):
     # Sec 4.1.2 in The Design of Rijndael
-    for c in state:
-        t = c[0] ^ c[1] ^ c[2] ^ c[3]
-        for i in range(4):
-            c[i] ^= t ^ xtime(c[i] & c[(i+1) % 4])
+    for i in range(4):
+        t = s[0][i] ^ s[1][i] ^ s[2][i] ^ s[3][i]
+        k = [s[j%4][i] for j in range(5)]
+        for j in range(4):
+            s[j][i] ^= t ^ xtime(s[j][i] ^ k[j+1])
 
-def cipher(block: bytes, keys: list[int]) -> list[list[int]]:
-    state = to_matrix(block)
+def cipher(block, keys):
+    state = transpose(to_matrix(block))
 
     add_round_key(state, keys[0]) # Sec. 5.1.4
 
-    for round in range(1, nr):
+    for round in range(1, 11):
         sub_bytes(state)    # Sec. 5.1.1
         shift_rows(state)   # Sec 5.1.2
         if round != 10:
@@ -122,3 +133,9 @@ def cipher(block: bytes, keys: list[int]) -> list[list[int]]:
 
     return state
 
+
+m = [0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d, 0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34]
+k = [0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c]
+ks = expand_key(k)
+c = cipher(m, ks)
+print_matrix(c)
