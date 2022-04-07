@@ -6,6 +6,8 @@
 # https://csrc.nist.gov/csrc/media/publications/fips/197/final/documents/fips-197.pdf
 
 from os import urandom
+from functools import reduce
+from operator import xor
 
 nk = 4 # chave de 128 bit / 4 words
 nb = 4 # blocos de 128 bit / 4 words
@@ -66,8 +68,8 @@ def unpad(message):
     size = message[-1]  # tamanho do padding é o ultimo elemento
     return message[:-size] # retorna a mensagem sem o preenchimento
 
-def split(message):
-    return [message[i:i+16] for i in range(0, len(message), 16)]
+def split(message, size):
+    return [message[i:i+size] for i in range(0, len(message), size)]
 
 def add(bytes, x):
     as_int = int.from_bytes(bytes, byteorder="big")
@@ -79,7 +81,7 @@ def to_matrix(msg):
 def transpose(l):
     return list(map(list, zip(*l)))
 
-def xor(a, b):
+def _xor(a, b):
     return [x^y for x,y in zip(a,b)]
 
 # https://stackoverflow.com/questions/2150108/efficient-way-to-rotate-a-list-in-python
@@ -96,16 +98,16 @@ def sub_word(word):
 
 def expand_key(key):
     # 4 primeiras words
-    words = to_matrix(key)
+    words = list(key)
 
     # 40 words restantes
-    for i in range(4, 44):
-        temp = words[i-1]
+    for i in range(16, 4*44, 4):
+        temp = words[i-5:i-1]
         if i % 4 == 0:
-            temp = xor(sub_word(rotate(temp)), [RCON[i//4], 0, 0, 0])
-        words.append(xor(words[i-4], temp))
+            temp = _xor(sub_word(rotate(temp)), [RCON[i//4], 0, 0, 0])
+        words += _xor(words[i-8:i-4], temp)
 
-    return [transpose(words[i:i+4]) for i in range(0, len(words), 4)]
+    return split(words, 4)
             
 
 def add_round_key(state, key):
@@ -121,6 +123,13 @@ def sub_bytes(state, box = SBOX):
 def shift_rows(state, dir = 1):
     for i in range(4):
         state[i] = rotate(state[i], i * dir)
+
+adr = lambda a, b: [x^y for x, y in zip(a, b)]
+sr = lambda s: (s*5)[::5]
+sb = lambda s: [SBOX[i] for i in s]
+
+m = lambda r: [reduce(xor, [r[i], *r, xtime(r[i] ^ r[(i+1)%4])]) for i in range(4)]
+mc = lambda s: [m(s[i:i+4]) for i in range(0, 16, 4)]
 
 def mix_columns(s, inv=False):
     # Sec 4.1.2 in The Design of Rijndael
@@ -140,7 +149,7 @@ def mix_columns(s, inv=False):
 def cipher(block, keys):
     state = transpose(to_matrix(block))
 
-    add_round_key(state, keys[0]) # Sec. 5.1.4
+    state = adr(state, keys[0]) # Sec. 5.1.4
 
     for round in range(1, 11):
         sub_bytes(state)    # Sec. 5.1.1
@@ -150,6 +159,14 @@ def cipher(block, keys):
         add_round_key(state, keys[round])
 
     return b''.join(map(bytes, transpose(state)))
+
+def _chiper(block, keys):
+    state = adr(block, keys[0])
+
+    for round in range(1,10):
+        state = adr(mc(sr(sb(state))), keys[round])
+
+    return mc(sr(sb(state)))
 
 def decipher(block, keys):
     state = transpose(to_matrix(block))
