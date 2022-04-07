@@ -98,16 +98,16 @@ def sub_word(word):
 
 def expand_key(key):
     # 4 primeiras words
-    words = list(key)
+    words = split(key, 4)
 
     # 40 words restantes
-    for i in range(16, 4*44, 4):
-        temp = words[i-5:i-1]
+    for i in range(4, 44):
+        temp = words[i-1]
         if i % 4 == 0:
             temp = _xor(sub_word(rotate(temp)), [RCON[i//4], 0, 0, 0])
-        words += _xor(words[i-8:i-4], temp)
+        words.append(bytes(_xor(words[i-4], temp)))
 
-    return split(words, 4)
+    return [b''.join(word) for word in split(words, 4)]
             
 
 def add_round_key(state, key):
@@ -127,9 +127,17 @@ def shift_rows(state, dir = 1):
 adr = lambda a, b: [x^y for x, y in zip(a, b)]
 sr = lambda s: (s*5)[::5]
 sb = lambda s: [SBOX[i] for i in s]
-
 m = lambda r: [reduce(xor, [r[i], *r, xtime(r[i] ^ r[(i+1)%4])]) for i in range(4)]
-mc = lambda s: [m(s[i:i+4]) for i in range(0, 16, 4)]
+mc = lambda s: [x for i in range(0, 16, 4) for x in m(s[i:i+4])]
+
+def inv_mc(s):
+    pre = [k ^ s[i+j]  for i in range(0, 16, 4)
+        for j, k in 
+        enumerate([xtime(xtime(s[i] ^ s[i+2])),
+            xtime(xtime(s[i+1] ^ s[i+3]))]*2)]
+    print(pre)
+    return mc(pre)
+   
 
 def mix_columns(s, inv=False):
     # Sec 4.1.2 in The Design of Rijndael
@@ -147,26 +155,12 @@ def mix_columns(s, inv=False):
             s[j][i] ^= t ^ xtime(s[j][i] ^ k[j+1])
 
 def cipher(block, keys):
-    state = transpose(to_matrix(block))
-
-    state = adr(state, keys[0]) # Sec. 5.1.4
-
-    for round in range(1, 11):
-        sub_bytes(state)    # Sec. 5.1.1
-        shift_rows(state)   # Sec 5.1.2
-        if round != 10:
-            mix_columns(state)  # Sec 5.1.3
-        add_round_key(state, keys[round])
-
-    return b''.join(map(bytes, transpose(state)))
-
-def _chiper(block, keys):
     state = adr(block, keys[0])
 
     for round in range(1,10):
         state = adr(mc(sr(sb(state))), keys[round])
 
-    return mc(sr(sb(state)))
+    return adr(sr(sb(state)), keys[-1])
 
 def decipher(block, keys):
     state = transpose(to_matrix(block))
