@@ -1,8 +1,9 @@
 from random import randrange
 from os import urandom
 from math import ceil
-from hashlib import sha1
+from hashlib import sha1, sha3_256
 from operator import xor
+
 
 ## TODO: providenciar a propria implementacao
 ## TODO: acelerar essa operacao
@@ -57,12 +58,8 @@ def gen_keys():
 
 
 # https://datatracker.ietf.org/doc/html/rfc8017#section-7.1.1
-#
-# RSAES-OAEP-ENCRYPT ((n, e), M, L)
-def oaep_encrypt(public_key, message):
+def oaep_encode(n, message):
     # TODO: length checking
-
-    n, e = public_key
 
     # k denotes the length in octets of the RSA modulus n
     k = (n.bit_length() + 7) // 8
@@ -80,33 +77,15 @@ def oaep_encrypt(public_key, message):
     masked_data_block = mask(data_block, seed, k - hash_len - 1)
     masked_seed = mask(seed, masked_data_block, hash_len)
 
-    encoded_message =  b'\x00' + masked_seed + masked_data_block
-
-    m = int.from_bytes(encoded_message, "big")
-    c = pow(m, e, n)
-    return c.to_bytes(k, "big")
-
+    return  b'\x00' + masked_seed + masked_data_block
 
 # https://datatracker.ietf.org/doc/html/rfc8017#section-7.1.2
-# 
-# RSAES-OAEP-DECRYPT (K, C, L)
-def oaep_decrypt(private_key, ciphertext):
+def oaep_decode(n, em):
     # TODO: length checking
 
-    (n, d) = private_key
-
     k = (n.bit_length() + 7) // 8
-    c = int.from_bytes(ciphertext, "big")
-
-    m = pow(c, d, n)
-
-    em = m.to_bytes(k, "big")
-
-    # decoding
 
     hash_len = 20
-    # lable_hash = b"\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t"
-
     _, masked_seed, masked_data_block = em[:1], em[1:1+hash_len], em[1 + hash_len:]
 
     seed = mask(masked_seed, masked_data_block, hash_len)
@@ -116,4 +95,18 @@ def oaep_decrypt(private_key, ciphertext):
 
     return message
 
+def rsa(key, message):
+    n, exponent = key
+    k = (n.bit_length() + 7) // 8
+    m = int.from_bytes(message, "big")
+    c = pow(m, exponent, n)
+    return c.to_bytes(k, "big")
+
+def sign(private_key, data):
+    hash = sha3_256(data).digest()
+    return rsa(private_key, hash)
+
+def verify(public_key, data, signature):
+    hash = sha3_256(data).digest()
+    return rsa(public_key, signature) == hash
 
