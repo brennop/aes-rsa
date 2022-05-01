@@ -5,8 +5,6 @@ from hashlib import sha1, sha3_256
 from operator import xor
 
 
-# TODO: providenciar a propria implementacao
-# TODO: acelerar essa operacao
 def miller_rabin(n):
     r, s = 0, n - 1
     while s % 2 == 0:
@@ -46,56 +44,39 @@ def mask(data, seed, mlen):
 def gen_keys():
     p = gen_prime()
     q = gen_prime()
-
     n = p * q
     phi_n = (p - 1) * (q - 1)
-
     e = 65537
     d = pow(e, -1, phi_n)
-
     public_key = (n, e)
     private_key = (n, d)
-
     return (public_key, private_key)
 
 
-# https://datatracker.ietf.org/doc/html/rfc8017#section-7.1.1
 def oaep_encode(n, message):
-    # TODO: length checking
-
-    # k denotes the length in octets of the RSA modulus n
     k = (n.bit_length() + 7) // 8
     message_len = len(message)
-
     hash_len = 20
     lable_hash = b"\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t"
-
     padding_string = b"\x00" * (k - message_len - 2 * hash_len - 2)
-
     data_block = lable_hash + padding_string + b'\x01' + message
-
     seed = urandom(hash_len)
-
     masked_data_block = mask(data_block, seed, k - hash_len - 1)
     masked_seed = mask(seed, masked_data_block, hash_len)
-
     return b'\x00' + masked_seed + masked_data_block
 
 
 # https://datatracker.ietf.org/doc/html/rfc8017#section-7.1.2
 def oaep_decode(n, em):
-    # TODO: length checking
-
     k = (n.bit_length() + 7) // 8
-
     hash_len = 20
     _, masked_seed, masked_data_block = em[:1], em[1:1 + hash_len], em[1 + hash_len:]
 
+    _, masked_seed, masked_data_block = em[:1], em[1:1 +
+                                                   hash_len], em[1 + hash_len:]
     seed = mask(masked_seed, masked_data_block, hash_len)
     data_block = mask(masked_data_block, seed, k - hash_len - 1)
-
     _, message = data_block.split(b'\x01')
-
     return message
 
 
