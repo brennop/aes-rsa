@@ -2,3 +2,10 @@ __pycache__
 *.key
 *.txt
 *.aes
+
+build
+dist
+main
+main.exe
+
+*.spec

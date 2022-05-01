@@ -4,7 +4,7 @@ import argparse
 import os
 import base64
 
-import rsa
+import rsae
 import aes
 
 if __name__ == "__main__":
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.action == "genkeys":
-        public_key, private_key = rsa.gen_keys()
+        public_key, private_key = rsae.gen_keys()
 
         n, e = public_key
         _, d = private_key
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         
         session_key = key + iv
         
-        # obter as chaves do rsa dos arquivos
+        # obter as chaves do rsae dos arquivos
         with open(args.private, "r") as file:
             n = int(file.readline())
             d = int(file.readline())
@@ -52,13 +52,13 @@ if __name__ == "__main__":
             e = int(file.readline())
             public_key = (n, e)
 
-        cipher_session_key = rsa.cipher(public_key, session_key)
+        cipher_session_key = rsae.cipher(public_key, session_key)
         
         with open(args.file, "rb") as file:
             content = file.read()
             cipher_content = aes.ctr(content, key, iv)
 
-            signature = rsa.sign(private_key, content)
+            signature = rsae.sign(private_key, content)
             
         with open(args.file + ".aes", "wb") as file:
            file.write(cipher_content)
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         with open(args.key, "r") as file:
             cipher_session_key = base64.b64decode(file.read())
 
-        # obter as chaves do rsa dos arquivos
+        # obter as chaves do rsae dos arquivos
         with open(args.private, "r") as file:
             n = int(file.readline())
             d = int(file.readline())
@@ -87,14 +87,14 @@ if __name__ == "__main__":
             e = int(file.readline())
             public_key = (n, e)
         
-        session_key = rsa.decipher(private_key, cipher_session_key)
+        session_key = rsae.decipher(private_key, cipher_session_key)
         key, iv = session_key[:16], session_key[16:]
 
         with open(args.file, "rb") as file:
             cipher_content = file.read()
             content = aes.ctr(cipher_content, key, iv)
 
-            result = rsa.verify(public_key, content, signature)
+            result = rsae.verify(public_key, content, signature)
 
         if result == True:
             print("Signature ok")

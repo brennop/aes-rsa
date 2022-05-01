@@ -29,15 +29,12 @@ def miller_rabin(n):
 def rand_odd(nbits=1024):
     return randrange(2 ** (nbits - 2), 2 ** (nbits - 1)) * 2 - 1
 
-# TODO: benchmark vs sem iterador
-
 
 def gen_prime():
     return next(filter(miller_rabin, iter(rand_odd, 0)))
 
+
 # https://datatracker.ietf.org/doc/html/rfc8017#appendix-B.2.1
-
-
 def mask(data, seed, mlen):
     t = b''
     for counter in range(ceil(mlen / 20)):
@@ -84,17 +81,15 @@ def oaep_encode(n, message):
 
     return b'\x00' + masked_seed + masked_data_block
 
+
 # https://datatracker.ietf.org/doc/html/rfc8017#section-7.1.2
-
-
 def oaep_decode(n, em):
     # TODO: length checking
 
     k = (n.bit_length() + 7) // 8
 
     hash_len = 20
-    _, masked_seed, masked_data_block = em[:1], em[1:1 +
-                                                   hash_len], em[1 + hash_len:]
+    _, masked_seed, masked_data_block = em[:1], em[1:1 + hash_len], em[1 + hash_len:]
 
     seed = mask(masked_seed, masked_data_block, hash_len)
     data_block = mask(masked_data_block, seed, k - hash_len - 1)
