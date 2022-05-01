@@ -38,18 +38,25 @@ RCON = (
 
 # pkcs#7
 # https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS#5_and_PKCS#7
+
+
 def pad(message):
-    size = 16 - len(message) % 16 # sempre haverá um padding
-    return message + bytes([size] * size) # constroi um preenchimento de size sizes
+    size = 16 - len(message) % 16  # sempre haverá um padding
+    # constroi um preenchimento de size sizes
+    return message + bytes([size] * size)
+
 
 def unpad(message):
-    return message[:-message[-1]] # retorna a mensagem sem o preenchimento
+    return message[:-message[-1]]  # retorna a mensagem sem o preenchimento
+
 
 def rotate(list):
     return (list*2)[1:5]
 
+
 def split(message, size):
     return [message[i:i+size] for i in range(0, len(message), size)]
+
 
 def inc(bytes):
     as_int = int.from_bytes(bytes, "big")
@@ -57,10 +64,12 @@ def inc(bytes):
         as_int += 1
         yield (as_int).to_bytes(16, "big")
 
+
 def xtime(x):
     return (((x << 1) ^ 0x1B) & 0xFF) if (x & 0x80) else (x << 1)
 
-### Implementação
+# Implementação
+
 
 def expand_key(key):
     # 4 primeiras words
@@ -70,25 +79,32 @@ def expand_key(key):
     for i in range(4, 44):
         temp = words[i-1]
         if i % 4 == 0:
-            *temp, = map(xor, (rotate(temp)).translate(SBOX), [RCON[i//4], 0, 0, 0])
+            *temp, = map(xor, (rotate(temp)).translate(SBOX),
+                         [RCON[i//4], 0, 0, 0])
         words.append(bytes([*map(xor, words[i-4], temp)]))
 
     return [b''.join(word) for word in split(words, 4)]
 
+
 def add_round_key(state, key):
     return bytes(map(xor, state, key))
+
 
 def sub_bytes(state):
     return state.translate(SBOX)
 
-def shift_rows(state, offset = 5):
+
+def shift_rows(state, offset=5):
     return (state * offset)[::offset]
 
+
 def mix_column(r):
-    return [reduce(xor, [a,*r, xtime(a^b)]) for a,b in zip(r,rotate(r))]
+    return [reduce(xor, [a, *r, xtime(a ^ b)]) for a, b in zip(r, rotate(r))]
+
 
 def mix_columns(state):
     return [x for r in split(state, 4) for x in mix_column(r)]
+
 
 def cipher(block, keys):
     # Sec. 5.1.4
@@ -103,6 +119,7 @@ def cipher(block, keys):
 
     return state
 
+
 def ctr(message, key, iv):
     keys = expand_key(key)
 
@@ -112,4 +129,3 @@ def ctr(message, key, iv):
     cipher_text = map(add_round_key, blocks, ciphers)
 
     return b''.join(cipher_text)
-

@@ -5,8 +5,8 @@ from hashlib import sha1, sha3_256
 from operator import xor
 
 
-## TODO: providenciar a propria implementacao
-## TODO: acelerar essa operacao
+# TODO: providenciar a propria implementacao
+# TODO: acelerar essa operacao
 def miller_rabin(n):
     r, s = 0, n - 1
     while s % 2 == 0:
@@ -25,14 +25,19 @@ def miller_rabin(n):
             return False
     return True
 
+
 def rand_odd(nbits=1024):
     return randrange(2 ** (nbits - 2), 2 ** (nbits - 1)) * 2 - 1
 
-## TODO: benchmark vs sem iterador
+# TODO: benchmark vs sem iterador
+
+
 def gen_prime():
     return next(filter(miller_rabin, iter(rand_odd, 0)))
 
 # https://datatracker.ietf.org/doc/html/rfc8017#appendix-B.2.1
+
+
 def mask(data, seed, mlen):
     t = b''
     for counter in range(ceil(mlen / 20)):
@@ -72,21 +77,24 @@ def oaep_encode(n, message):
 
     data_block = lable_hash + padding_string + b'\x01' + message
 
-    seed = urandom(hash_len) 
+    seed = urandom(hash_len)
 
     masked_data_block = mask(data_block, seed, k - hash_len - 1)
     masked_seed = mask(seed, masked_data_block, hash_len)
 
-    return  b'\x00' + masked_seed + masked_data_block
+    return b'\x00' + masked_seed + masked_data_block
 
 # https://datatracker.ietf.org/doc/html/rfc8017#section-7.1.2
+
+
 def oaep_decode(n, em):
     # TODO: length checking
 
     k = (n.bit_length() + 7) // 8
 
     hash_len = 20
-    _, masked_seed, masked_data_block = em[:1], em[1:1+hash_len], em[1 + hash_len:]
+    _, masked_seed, masked_data_block = em[:1], em[1:1 +
+                                                   hash_len], em[1 + hash_len:]
 
     seed = mask(masked_seed, masked_data_block, hash_len)
     data_block = mask(masked_data_block, seed, k - hash_len - 1)
@@ -95,6 +103,7 @@ def oaep_decode(n, em):
 
     return message
 
+
 def rsa(key, message):
     n, exponent = key
     k = (n.bit_length() + 7) // 8
@@ -102,11 +111,22 @@ def rsa(key, message):
     c = pow(m, exponent, n)
     return c.to_bytes(k, "big")
 
+
+def cipher(key, message):
+    encoded = oaep_encode(key[0], message)
+    return rsa(key, encoded)
+
+
+def decipher(key, ciphertext):
+    encoded = rsa(key, ciphertext)
+    return oaep_decode(key[0], encoded)
+
+
 def sign(private_key, data):
     hash = sha3_256(data).digest()
     return rsa(private_key, hash)
 
+
 def verify(public_key, data, signature):
     hash = sha3_256(data).digest()
-    return rsa(public_key, signature) == hash
-
+    return rsa(public_key, signature)[-32:] == hash
