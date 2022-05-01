@@ -7,7 +7,7 @@
 
 ## Descrição
 
-O segundo trabalho da disciplina consiste em implementar os algoritmos de AES e RSA. AES é um algoritmo de criptografia simétrica, que é utilizado para criptografar mensagens. A chave de criptografia AES é um vetor de 16 bytes, que é gerado aleatoriamente. A criptografia AES é implementada utilizando o algoritmo de substituição de bytes. RSA é um algoritmo de criptografia assimétrica, que é utilizado para criptografar mensagens. A chave de criptografia RSA é gerada aleatoriamente. A criptografia RSA é implementada utilizando o algoritmo de exponenciação modular.
+O segundo trabalho da disciplina consiste em implementar os algoritmos de AES-CTR e RSA. AES-CTR é um algoritmo de cifração simétrica, que é utilizado para cifrar mensagens. A chave de cifração AES-CTR é um vetor de 16 bytes, que é gerado aleatoriamente. A cifração AES-CTR é implementada utilizando o algoritmo de substituição de bytes. Ele funciona gerando bits aleatórios com a chave de cifração e o vetor inicial. Com esses bits é então feita a operação XOR com a string recebida. Isto cria um texto aleatório. Para decifrar precisamos apenas aplicar operações XOR com o texo usando os mesmos bits aleatórios que foram gerados na cifração usando a chave e o vetor inicial. RSA é um algoritmo de cifração assimétrica, que é utilizado para cifrar mensagens. A chave de cifração RSA é gerada aleatoriamente. A cifração RSA é implementada utilizando o algoritmo de exponenciação modular.
 
 ## Algoritmos
 
@@ -32,14 +32,14 @@ O segundo trabalho da disciplina consiste em implementar os algoritmos de AES e 
         - Calcula `phi(n) = (p-1)(q-1)`
         - Escolhe um número aleatório `e` entre 1 e `phi(n)`
         - Calcula `d = e^-1 mod phi(n)`
-    - Criptografa o texto simples
+    - Cifra o texto simples
         - Transmite a chave pública
         - Envia a mensagem como um bloco de 64 bytes
-        - Recebe a mensagem criptografada como um bloco de 64 bytes
-    - Decriptografa o texto criptografado
+        - Recebe a mensagem cifrada como um bloco de 64 bytes
+    - Decifra o texto cifrado
         - Recupera mensagem m a partir da chave privada 
             - `m = c^d (mod n)`
-        - Decriptografa a mensagem m
+        - Decifra a mensagem m
 
 ## Implementação
 
