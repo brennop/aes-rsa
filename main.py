@@ -34,13 +34,13 @@ if __name__ == "__main__":
 
         with open(args.public, "w") as file:
             file.write("{}\n{}".format(n, e))
-    
+
     if args.action == "cipher":
         key = os.urandom(16)
         iv = os.urandom(16)
-        
+
         session_key = key + iv
-        
+
         # obter as chaves do rsa dos arquivos
         with open(args.private, "r") as file:
             n = int(file.readline())
@@ -53,26 +53,26 @@ if __name__ == "__main__":
             public_key = (n, e)
 
         cipher_session_key = rsa.cipher(public_key, session_key)
-        
+
         with open(args.file, "rb") as file:
             content = file.read()
             cipher_content = aes.ctr(content, key, iv)
 
             signature = rsa.sign(private_key, content)
-            
+
         with open(args.file + ".aes", "wb") as file:
-           file.write(cipher_content)
-        
+            file.write(cipher_content)
+
         with open(args.signature, "w") as file:
             file.write(base64.b64encode(signature).decode("ascii"))
-            
+
         with open(args.key, "w") as file:
             file.write(base64.b64encode(cipher_session_key).decode("ascii"))
-    
+
     if args.action == "decipher":
         with open(args.signature, "r") as file:
             signature = base64.b64decode(file.read())
-            
+
         with open(args.key, "r") as file:
             cipher_session_key = base64.b64decode(file.read())
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             n = int(file.readline())
             e = int(file.readline())
             public_key = (n, e)
-        
+
         session_key = rsa.decipher(private_key, cipher_session_key)
         key, iv = session_key[:16], session_key[16:]
 
@@ -100,6 +100,3 @@ if __name__ == "__main__":
             print("Signature ok")
             with open(args.output, "wb") as file:
                 file.write(content)
-
-
-

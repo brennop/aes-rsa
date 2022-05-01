@@ -1,10 +1,3 @@
-# AES Encryption
-#
-# resources
-# -
-# http://www.moserware.com/assets/stick-figure-guide-to-advanced/A%20Stick%20Figure%20Guide%20to%20the%20Advanced%20Encryption%20Standard%20%28AES%29.pdf
-# https://csrc.nist.gov/csrc/media/publications/fips/197/final/documents/fips-197.pdf
-
 from functools import reduce
 from operator import xor
 
@@ -34,20 +27,14 @@ RCON = (
     0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
 )
 
-# funções auxiliares
-
-# pkcs#7
-# https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS#5_and_PKCS#7
-
 
 def pad(message):
-    size = 16 - len(message) % 16  # sempre haverá um padding
-    # constroi um preenchimento de size sizes
+    size = 16 - len(message) % 16
     return message + bytes([size] * size)
 
 
 def unpad(message):
-    return message[:-message[-1]]  # retorna a mensagem sem o preenchimento
+    return message[:-message[-1]]
 
 
 def rotate(list):
@@ -68,21 +55,15 @@ def inc(bytes):
 def xtime(x):
     return (((x << 1) ^ 0x1B) & 0xFF) if (x & 0x80) else (x << 1)
 
-# Implementação
-
 
 def expand_key(key):
-    # 4 primeiras words
     words = split(key, 4)
-
-    # 40 words restantes
     for i in range(4, 44):
         temp = words[i-1]
         if i % 4 == 0:
             *temp, = map(xor, (rotate(temp)).translate(SBOX),
                          [RCON[i//4], 0, 0, 0])
         words.append(bytes([*map(xor, words[i-4], temp)]))
-
     return [b''.join(word) for word in split(words, 4)]
 
 
@@ -107,25 +88,19 @@ def mix_columns(state):
 
 
 def cipher(block, keys):
-    # Sec. 5.1.4
     state = add_round_key(block, keys[0])
-
     for round in range(1, 11):
-        state = sub_bytes(state)    # Sec. 5.1.1
-        state = shift_rows(state)   # Sec 5.1.2
+        state = sub_bytes(state)
+        state = shift_rows(state)
         if round != 10:
-            state = mix_columns(state)  # Sec 5.1.3
+            state = mix_columns(state)
         state = add_round_key(state, keys[round])
-
     return state
 
 
 def ctr(message, key, iv):
     keys = expand_key(key)
-
     blocks = split(message, 16)
     ciphers = (cipher(nonce, keys) for nonce in inc(iv))
-
     cipher_text = map(add_round_key, blocks, ciphers)
-
     return b''.join(cipher_text)
