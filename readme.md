@@ -24,6 +24,19 @@ O segundo trabalho da disciplina consiste em implementar os algoritmos de AES-CT
         - Execute XOR com a chave da rodada
     - Realize a décima e última rodada de manipulação do estado
 
+### CTR
+
+    - Cifração:
+        - Gera bits aleatórios com a chave de cifra e o vetor inicial
+        - Execute XOR com a string recebida
+        - Cifra o texto
+    - Decifração:
+        - Utiliza os mesmos bits aleatórios gerados na cifração
+        - Execute XOR com a chave de cifra
+        - Execute XOR com o vetor inicial
+        - Decifra o texto
+
+
 ### RSA
 
     - Gera chaves pública e privada aleatórias
