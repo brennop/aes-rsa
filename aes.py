@@ -38,8 +38,6 @@ RCON = (
 
 # pkcs#7
 # https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS#5_and_PKCS#7
-
-
 def pad(message):
     size = 16 - len(message) % 16  # sempre haverá um padding
     # constroi um preenchimento de size sizes
@@ -79,8 +77,7 @@ def expand_key(key):
     for i in range(4, 44):
         temp = words[i-1]
         if i % 4 == 0:
-            *temp, = map(xor, (rotate(temp)).translate(SBOX),
-                         [RCON[i//4], 0, 0, 0])
+            *temp, = map(xor, rotate(temp).translate(SBOX), [RCON[i//4], 0, 0, 0])
         words.append(bytes([*map(xor, words[i-4], temp)]))
 
     return [b''.join(word) for word in split(words, 4)]
@@ -107,8 +104,7 @@ def mix_columns(state):
 
 
 def cipher(block, keys):
-    # Sec. 5.1.4
-    state = add_round_key(block, keys[0])
+    state = add_round_key(block, keys[0]) # Sec. 5.1.4
 
     for round in range(1, 11):
         state = sub_bytes(state)    # Sec. 5.1.1
