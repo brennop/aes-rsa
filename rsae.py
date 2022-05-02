@@ -71,8 +71,6 @@ def oaep_decode(n, em):
     hash_len = 20
     _, masked_seed, masked_data_block = em[:1], em[1:1 + hash_len], em[1 + hash_len:]
 
-    _, masked_seed, masked_data_block = em[:1], em[1:1 +
-                                                   hash_len], em[1 + hash_len:]
     seed = mask(masked_seed, masked_data_block, hash_len)
     data_block = mask(masked_data_block, seed, k - hash_len - 1)
     _, message = data_block.split(b'\x01')
